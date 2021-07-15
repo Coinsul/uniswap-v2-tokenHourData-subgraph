@@ -1,6 +1,15 @@
 /* eslint-disable prefer-const */
 import { BigDecimal, BigInt, EthereumEvent } from '@graphprotocol/graph-ts'
-import { Bundle, Pair, PairDayData, Token, TokenDayData, UniswapDayData, UniswapFactory } from '../types/schema'
+import {
+  Bundle,
+  Pair,
+  PairDayData,
+  Token,
+  TokenDayData,
+  TokenHourData,
+  UniswapDayData,
+  UniswapFactory
+} from '../types/schema'
 import { PairHourData } from './../types/schema'
 import { FACTORY_ADDRESS, ONE_BI, ZERO_BD, ZERO_BI } from './helpers'
 
@@ -126,4 +135,72 @@ export function updateTokenDayData(token: Token, event: EthereumEvent): TokenDay
   // updateStoredPairs(tokenDayData as TokenDayData, dayPairID)
 
   return tokenDayData as TokenDayData
+}
+
+export function updateTokenHourData(token: Token, event: EthereumEvent): TokenHourData {
+  let bundle = Bundle.load('1')
+  let timestamp = event.block.timestamp.toI32()
+  let hourIndex = timestamp / 3600 // get unique hour within unix history
+  let hourStartUnix = hourIndex * 3600 // want the rounded effect
+  let tokenHourID = token.id
+    .toString()
+    .concat('-')
+    .concat(hourIndex.toString())
+
+  let tokenHourData = TokenHourData.load(tokenHourID)
+  let tokenPrice = token.derivedETH.times(bundle.ethPrice)
+
+  if (tokenHourData === null) {
+    // Initialize this hour
+    tokenHourData = new TokenHourData(tokenHourID)
+    tokenHourData.periodStartUnix = hourStartUnix
+    tokenHourData.token = token.id
+
+    // volume stats
+    tokenHourData.volumeToken = ZERO_BD
+    tokenHourData.volumeETH = ZERO_BD
+    tokenHourData.volumeUSD = ZERO_BD
+    tokenHourData.txns = ZERO_BI
+
+    // liquidity stats
+    tokenHourData.totalLiquidityToken = ZERO_BD
+    tokenHourData.totalLiquidityUSD = ZERO_BD
+    tokenHourData.totalLiquidityETH = ZERO_BD
+
+    // price stats
+    tokenHourData.priceUSD = tokenPrice
+    tokenHourData.open = tokenPrice
+    tokenHourData.high = tokenPrice
+    tokenHourData.low = tokenPrice
+    tokenHourData.close = tokenPrice
+  }
+
+  // Track candle
+  if (tokenPrice.gt(tokenHourData.high)) {
+    tokenHourData.high = tokenPrice
+  }
+
+  if (tokenPrice.lt(tokenHourData.low)) {
+    tokenHourData.low = tokenPrice
+  }
+  tokenHourData.close = tokenPrice
+  tokenHourData.priceUSD = tokenPrice
+
+  // Update liquidity
+  // TODO: pick up here!!
+  tokenHourData.totalLiquidityToken = token.totalLiquidity
+  tokenHourData.totalLiquidityETH = token.totalLiquidity.times(token.derivedETH as BigDecimal)
+  tokenHourData.totalLiquidityUSD = tokenHourData.totalLiquidityETH.times(bundle.ethPrice)
+  tokenHourData.txns = tokenHourData.txns.plus(ONE_BI)
+  tokenHourData.save()
+
+  // NOTE: volumes are updated in the handleSwap function (from which this one is called)
+
+  /**
+   * @todo test if this speeds up sync
+   */
+  // updateStoredTokens(tokenDayData as TokenDayData, dayID)
+  // updateStoredPairs(tokenDayData as TokenDayData, dayPairID)
+
+  return tokenHourData as TokenHourData
 }

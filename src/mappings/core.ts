@@ -11,7 +11,13 @@ import {
   Bundle
 } from '../types/schema'
 import { Pair as PairContract, Mint, Burn, Swap, Transfer, Sync } from '../types/templates/Pair/Pair'
-import { updatePairDayData, updateTokenDayData, updateUniswapDayData, updatePairHourData } from './dayUpdates'
+import {
+  updatePairDayData,
+  updateTokenDayData,
+  updateTokenHourData,
+  updateUniswapDayData,
+  updatePairHourData
+} from './dayUpdates'
 import { getEthPriceInUSD, findEthPerToken, getTrackedVolumeUSD, getTrackedLiquidityUSD } from './pricing'
 import {
   convertTokenToDecimal,
@@ -509,6 +515,9 @@ export function handleSwap(event: Swap): void {
   let token0DayData = updateTokenDayData(token0 as Token, event)
   let token1DayData = updateTokenDayData(token1 as Token, event)
 
+  let token0HourData = updateTokenHourData(token0 as Token, event)
+  let token1HourData = updateTokenHourData(token1 as Token, event)
+
   // swap specific updating
   uniswapDayData.dailyVolumeUSD = uniswapDayData.dailyVolumeUSD.plus(trackedAmountUSD)
   uniswapDayData.dailyVolumeETH = uniswapDayData.dailyVolumeETH.plus(trackedAmountETH)
@@ -533,13 +542,24 @@ export function handleSwap(event: Swap): void {
   token0DayData.dailyVolumeUSD = token0DayData.dailyVolumeUSD.plus(
     amount0Total.times(token0.derivedETH as BigDecimal).times(bundle.ethPrice)
   )
-  token0DayData.save()
+  token0HourData.volumeToken = token0HourData.volumeToken.plus(amount0Total)
+  token0HourData.volumeETH = token0HourData.volumeETH.plus(amount0Total.times(token0.derivedETH as BigDecimal))
+  token0HourData.volumeUSD = token0HourData.volumeUSD.plus(
+    amount0Total.times(token0.derivedETH as BigDecimal).times(bundle.ethPrice)
+  )
+  token0HourData.save()
 
-  // swap specific updating
+  // swap specific updating for token 1
   token1DayData.dailyVolumeToken = token1DayData.dailyVolumeToken.plus(amount1Total)
   token1DayData.dailyVolumeETH = token1DayData.dailyVolumeETH.plus(amount1Total.times(token1.derivedETH as BigDecimal))
   token1DayData.dailyVolumeUSD = token1DayData.dailyVolumeUSD.plus(
     amount1Total.times(token1.derivedETH as BigDecimal).times(bundle.ethPrice)
   )
   token1DayData.save()
+  token1HourData.volumeToken = token1HourData.volumeToken.plus(amount1Total)
+  token1HourData.volumeETH = token1HourData.volumeETH.plus(amount1Total.times(token1.derivedETH as BigDecimal))
+  token1HourData.volumeUSD = token1HourData.volumeUSD.plus(
+    amount1Total.times(token1.derivedETH as BigDecimal).times(bundle.ethPrice)
+  )
+  token1HourData.save()
 }

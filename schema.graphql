@@ -299,3 +299,30 @@ type TokenDayData @entity {
   # price stats
   priceUSD: BigDecimal!
 }
+
+type TokenHourData @entity {
+  # token address concatendated with date
+  id: ID!
+  # unix timestamp for start of hour
+  periodStartUnix: Int!
+  # pointer to token
+  token: Token!
+
+  ## volume stats
+  volumeToken: BigDecimal!
+  volumeETH: BigDecimal!
+  volumeUSD: BigDecimal!
+  txns: BigInt!
+
+  # liquidity stats
+  totalLiquidityToken: BigDecimal!
+  totalLiquidityETH: BigDecimal!
+  totalLiquidityUSD: BigDecimal!
+
+  ## price stats (all usd)
+  priceUSD: BigDecimal!
+  open: BigDecimal!
+  high: BigDecimal!
+  low: BigDecimal!
+  close: BigDecimal!
+}
